@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">GetUpsideAssignment</string>
+    <string name="go_to_settings">Go to Settings</string>
+    <string name="location_permission_denied">The app has not been granted Location permission.\n
+        Hence, it cannot function properly.\n
+        Please consider granting it this permission in phone Settings.</string>
+    <string name="no_google_play_services">The app requires Google Play Services to run.</string>
+</resources>
