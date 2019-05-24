@@ -9,9 +9,7 @@ import android.view.View
 import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
-import com.esri.arcgisruntime.geometry.PointBuilder
-import com.esri.arcgisruntime.tasks.geocode.GeocodeParameters
-import com.esri.arcgisruntime.tasks.geocode.LocatorTask
+import androidx.lifecycle.ViewModelProviders
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.LocationServices
@@ -29,6 +27,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val assignmentApplication by lazy { application as AssignmentApplication }
+    private val viewModel by lazy { ViewModelProviders.of(this)[MainViewModel::class.java] }
 
     private val locationPermissionHelper by lazy {
         LocationPermissionHelper(
@@ -88,6 +87,7 @@ class MainActivity : AppCompatActivity() {
                         )
                     )
                     map.isMyLocationEnabled = true
+                    viewModel.onMapInteractionsStopped(location)
                 }
             }
         }
