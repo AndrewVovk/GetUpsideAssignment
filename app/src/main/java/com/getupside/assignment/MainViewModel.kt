@@ -2,12 +2,15 @@ package com.getupside.assignment
 
 import android.app.Application
 import android.location.Location
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.MutableLiveData
 import com.esri.arcgisruntime.geometry.Point
 import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.tasks.geocode.GeocodeParameters
 import com.esri.arcgisruntime.tasks.geocode.LocatorTask
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import io.realm.Realm
 import java.util.*
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -15,6 +18,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     companion object {
         private const val GEOCODE_URL = "http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"
     }
+
+    val places = MutableLiveData<List<Place>>()
 
     private val params = GeocodeParameters().apply {
         maxResults = 20
@@ -34,36 +39,58 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val realm by lazy { getApplication<AssignmentApplication>().realm }
 
-    fun onMapInteractionsStopped(location: Location) {
-        with({
+    fun onMapReady(bounds: LatLngBounds, location: Location) {
+        realm.where(Place::class.java).findAllAsync().addChangeListener { results ->
+            if (results.none {
+                    bounds.contains(
+                        LatLng(
+                            it.latitude ?: throw IllegalStateException(),
+                            it.longitude ?: throw IllegalStateException()
+                        )
+                    )
+                }) {
+                fetchPlaces(location)
+            } else {
+                places.value = results
+            }
+        }
+    }
+
+    private fun fetchPlaces(location: Location) {
+        val task = {
             params.preferredSearchLocation = Point(location.longitude, location.latitude)
             locatorTask.geocodeAsync("", params).let { listenableFuture ->
                 listenableFuture.addDoneListener {
 
-                    realm.executeTransaction {
-                        realm.deleteAll()
+                    realm.executeTransactionAsync(
+                        Realm.Transaction { realm ->
+                            realm.deleteAll()
 
-                        realm.copyToRealm(
-                            listenableFuture.get().map { result ->
-                                val attrs = result.attributes
-                                Place().apply {
-                                    name = attrs["PlaceName"].toString()
-                                    address = attrs["Place_addr"].toString()
-                                    url = attrs["URL"].toString()
-                                    phone = attrs["Phone"].toString()
-                                    type = attrs["Type"].toString()
+                            realm.copyToRealm(
+                                listenableFuture.get().map { result ->
+                                    val attrs = result.attributes
+                                    Place().apply {
+                                        latitude = attrs["Y"] as Double
+                                        longitude = attrs["X"] as Double
+                                        name = attrs["PlaceName"] as String
+                                        address = attrs["Place_addr"] as String
+                                        url = attrs["URL"] as String
+                                        phone = attrs["Phone"] as String
+                                        type = attrs["Type"] as String
+                                    }
                                 }
+                            )
+                        },
+                        Realm.Transaction.OnSuccess {
+                            realm.where(Place::class.java).findAllAsync().addChangeListener { results ->
+                                places.value = results
                             }
-                        )
-                    }
-
-                    Log.d("vovk", realm.where(Place::class.java).findAll().toString())
-
+                        })
                 }
             }
-        }) {
-            if (locatorTask.loadStatus == LoadStatus.LOADED) this()
-            else pendingTasks.add(this)
         }
+
+        if (locatorTask.loadStatus == LoadStatus.LOADED) task()
+        else pendingTasks.add(task)
     }
 }
