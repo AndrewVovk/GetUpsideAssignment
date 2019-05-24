@@ -1,3 +1,11 @@
 package com.getupside.assignment
 
-data class Place(val name: String, val address: String, val url: String, val phone: String, val type: String)
+import io.realm.RealmObject
+
+open class Place : RealmObject() {
+    var name: String? = null
+    var address: String? = null
+    var url: String? = null
+    var phone: String? = null
+    var type: String? = null
+}

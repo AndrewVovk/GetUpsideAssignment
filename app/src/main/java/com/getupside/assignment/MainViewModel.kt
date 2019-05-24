@@ -1,15 +1,16 @@
 package com.getupside.assignment
 
+import android.app.Application
 import android.location.Location
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import com.esri.arcgisruntime.geometry.Point
 import com.esri.arcgisruntime.loadable.LoadStatus
 import com.esri.arcgisruntime.tasks.geocode.GeocodeParameters
 import com.esri.arcgisruntime.tasks.geocode.LocatorTask
 import java.util.*
 
-class MainViewModel : ViewModel() {
+class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     companion object {
         private const val GEOCODE_URL = "http://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer"
@@ -31,22 +32,32 @@ class MainViewModel : ViewModel() {
 
     private val pendingTasks: Queue<() -> Unit> = LinkedList<() -> Unit>()
 
+    private val realm by lazy { getApplication<AssignmentApplication>().realm }
+
     fun onMapInteractionsStopped(location: Location) {
         with({
             params.preferredSearchLocation = Point(location.longitude, location.latitude)
             locatorTask.geocodeAsync("", params).let { listenableFuture ->
                 listenableFuture.addDoneListener {
 
-                    Log.d("vovk", listenableFuture.get().map { result ->
-                        val attrs = result.attributes
-                        return@map Place(
-                            attrs["PlaceName"].toString(),
-                            attrs["Place_addr"].toString(),
-                            attrs["URL"].toString(),
-                            attrs["Phone"].toString(),
-                            attrs["Type"].toString()
+                    realm.executeTransaction {
+                        realm.deleteAll()
+
+                        realm.copyToRealm(
+                            listenableFuture.get().map { result ->
+                                val attrs = result.attributes
+                                Place().apply {
+                                    name = attrs["PlaceName"].toString()
+                                    address = attrs["Place_addr"].toString()
+                                    url = attrs["URL"].toString()
+                                    phone = attrs["Phone"].toString()
+                                    type = attrs["Type"].toString()
+                                }
+                            }
                         )
-                    }.toString())
+                    }
+
+                    Log.d("vovk", realm.where(Place::class.java).findAll().toString())
 
                 }
             }
