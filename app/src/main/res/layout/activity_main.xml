@@ -51,19 +51,12 @@
             android:layout_gravity="bottom"
             android:animateLayoutChanges="true">
 
-        <TextView
-                android:id="@+id/details"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@android:color/white"
-                android:gravity="center"
-                android:visibility="gone"/>
+        <include layout="@layout/place_details"/>
 
         <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recycler_view"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:visibility="gone"/>
+                android:layout_height="wrap_content"/>
 
     </LinearLayout>
 

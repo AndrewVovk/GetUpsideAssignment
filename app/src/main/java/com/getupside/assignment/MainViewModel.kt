@@ -39,6 +39,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val realm by lazy { getApplication<AssignmentApplication>().realm }
 
+    val selectedPlace = MutableLiveData<Place>()
+
+    fun onMarkerClick(latLng: LatLng) {
+        selectedPlace.value =
+            places.value?.let { list ->
+                list.first {
+                    it.latitude == latLng.latitude && it.longitude == latLng.longitude
+                }
+            }
+    }
+
+    fun onPlaceClick(place: Place) {
+        selectedPlace.value = place
+    }
+
     fun onMapReady(bounds: LatLngBounds, location: Location) {
         realm.where(Place::class.java).findAllAsync().addChangeListener { results ->
             if (results.none {
@@ -49,16 +64,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     )
                 }) {
-                fetchPlaces(location)
+                fetchPlaces(location.latitude, location.longitude)
             } else {
                 places.value = results
             }
         }
     }
 
-    private fun fetchPlaces(location: Location) {
+    fun onCameraIdle(latLng: LatLng) = fetchPlaces(latLng.latitude, latLng.longitude)
+
+    private fun fetchPlaces(latitude: Double, longitude: Double) {
         val task = {
-            params.preferredSearchLocation = Point(location.longitude, location.latitude)
+            params.preferredSearchLocation = Point(longitude, latitude)
             locatorTask.geocodeAsync("", params).let { listenableFuture ->
                 listenableFuture.addDoneListener {
 
@@ -70,8 +87,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                 listenableFuture.get().map { result ->
                                     val attrs = result.attributes
                                     Place().apply {
-                                        latitude = attrs["Y"] as Double
-                                        longitude = attrs["X"] as Double
+                                        this.latitude = attrs["Y"] as Double
+                                        this.longitude = attrs["X"] as Double
                                         name = attrs["PlaceName"] as String
                                         address = attrs["Place_addr"] as String
                                         url = attrs["URL"] as String
