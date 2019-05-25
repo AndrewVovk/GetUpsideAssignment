@@ -31,6 +31,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val PERMISSIONS_REQUEST_LOCATION = 2019
         private const val DEFAULT_ZOOM = 14f
+        private const val CAMERA_POSITION = "camera_position"
     }
 
     private val assignmentApplication by lazy { application as AssignmentApplication }
@@ -79,6 +80,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var cameraPosition: LatLng? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -86,6 +89,8 @@ class MainActivity : AppCompatActivity() {
         findViewById<View>(R.id.go_to_settings).setOnClickListener { goToSettings() }
 
         observeSelectedPlace()
+
+        cameraPosition = savedInstanceState?.getParcelable(CAMERA_POSITION)
     }
 
     override fun onResume() {
@@ -93,6 +98,11 @@ class MainActivity : AppCompatActivity() {
         if (isGooglePlayServicesAvailable())
             locationPermissionHelper.requestPermission(assignmentApplication.isLocationPermissionDenied)
         else findViewById<View>(R.id.no_google_play_services).visibility = VISIBLE
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putParcelable(CAMERA_POSITION, cameraPosition)
     }
 
     override fun onRequestPermissionsResult(
@@ -114,6 +124,7 @@ class MainActivity : AppCompatActivity() {
             private var firstCallSkipped = false
             override fun onCameraIdle() {
                 if (firstCallSkipped) {
+                    cameraPosition = map.cameraPosition.target
                     viewModel.onCameraIdle(map.cameraPosition.target)
                 } else {
                     firstCallSkipped = true
@@ -167,17 +178,26 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun showLastLocation(map: GoogleMap) {
-        fusedLocationClient.lastLocation.addOnCompleteListener { task ->
-            task.result?.let { location ->
-                map.moveCamera(
-                    CameraUpdateFactory.newLatLngZoom(
-                        LatLng(location.latitude, location.longitude), DEFAULT_ZOOM
-                    )
-                )
-                map.isMyLocationEnabled = true
-                viewModel.onMapReady(map.projection.visibleRegion.latLngBounds, location)
+        if (cameraPosition != null) {
+            moveCameraToInitialPosition(map, cameraPosition ?: throw IllegalStateException())
+        } else {
+            fusedLocationClient.lastLocation.addOnCompleteListener { task ->
+                task.result?.let { location ->
+                    moveCameraToInitialPosition(map, LatLng(location.latitude, location.longitude))
+                }
             }
         }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun moveCameraToInitialPosition(map: GoogleMap, latLng: LatLng) {
+        map.moveCamera(
+            CameraUpdateFactory.newLatLngZoom(
+                LatLng(latLng.latitude, latLng.longitude), DEFAULT_ZOOM
+            )
+        )
+        map.isMyLocationEnabled = true
+        viewModel.onMapReady(map.projection.visibleRegion.latLngBounds, latLng)
     }
 
     private fun requestCurrentLocation() {

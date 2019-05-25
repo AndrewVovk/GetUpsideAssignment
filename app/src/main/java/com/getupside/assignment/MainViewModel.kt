@@ -1,7 +1,6 @@
 package com.getupside.assignment
 
 import android.app.Application
-import android.location.Location
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.MutableLiveData
 import com.esri.arcgisruntime.geometry.Point
@@ -55,20 +54,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         selectedPlace.value = place
     }
 
-    fun onMapReady(bounds: LatLngBounds, location: Location) {
-        realm.where(Place::class.java).findAllAsync().addChangeListener { results ->
-            if (results.none {
-                    bounds.contains(
-                        LatLng(
-                            it.latitude ?: throw IllegalStateException(),
-                            it.longitude ?: throw IllegalStateException()
-                        )
+    fun onMapReady(bounds: LatLngBounds, location: LatLng) {
+        val results = realm.where(Place::class.java).findAll()
+        if (results.none {
+                bounds.contains(
+                    LatLng(
+                        it.latitude ?: throw IllegalStateException(),
+                        it.longitude ?: throw IllegalStateException()
                     )
-                }) {
-                fetchPlaces(location.latitude, location.longitude)
-            } else {
-                places.value = results
-            }
+                )
+            }) {
+            fetchPlaces(location.latitude, location.longitude)
+        } else {
+            places.value = results
         }
     }
 
