@@ -11,6 +11,7 @@ import com.esri.arcgisruntime.tasks.geocode.LocatorTask
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import io.realm.Realm
+import io.realm.RealmObject
 import java.util.*
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -81,21 +82,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     realm.executeTransactionAsync(
                         Realm.Transaction { realm ->
-                            realm.deleteAll()
+                            realm.where(Place::class.java).findAll()
+                                .filter { it != selectedPlace.value }
+                                .forEach(RealmObject::deleteFromRealm)
 
                             realm.copyToRealm(
-                                listenableFuture.get().map { result ->
-                                    val attrs = result.attributes
-                                    Place().apply {
-                                        this.latitude = attrs["Y"] as Double
-                                        this.longitude = attrs["X"] as Double
-                                        name = attrs["PlaceName"] as String
-                                        address = attrs["Place_addr"] as String
-                                        url = attrs["URL"] as String
-                                        phone = attrs["Phone"] as String
-                                        type = attrs["Type"] as String
+                                listenableFuture.get()
+                                    .map { result ->
+                                        val attrs = result.attributes
+                                        Place().apply {
+                                            this.latitude = attrs["Y"] as Double
+                                            this.longitude = attrs["X"] as Double
+                                            name = attrs["PlaceName"] as String
+                                            address = attrs["Place_addr"] as String
+                                            url = attrs["URL"] as String
+                                            phone = attrs["Phone"] as String
+                                            type = attrs["Type"] as String
+                                        }
                                     }
-                                }
+                                    .filter { it != selectedPlace.value }
                             )
                         },
                         Realm.Transaction.OnSuccess {
